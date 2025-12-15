@@ -23,7 +23,10 @@ class LigaScraper:
         # URLs das marcas
         self.urls = {
             'marca_79': 'https://www.ligaswu.com.br/?view=cards%2Fsearch&card=marca%3D79+searchprod%3D1&tipo=1',
-            'marca_2': 'https://www.ligaswu.com.br/?view=cards%2Fsearch&card=marca%3D2+searchprod%3D1&tipo=1'
+            'marca_2': 'https://www.ligaswu.com.br/?view=cards%2Fsearch&card=marca%3D2+searchprod%3D1&tipo=1',
+            'marca_4': 'https://www.ligaswu.com.br/?view=cards%2Fsearch&card=marca%3D4+searchprod%3D1&tipo=1',
+            'marca_9': 'https://www.ligaswu.com.br/?view=cards%2Fsearch&card=marca%3D9+searchprod%3D1&tipo=1',
+            'marca_11': 'https://www.ligaswu.com.br/?view=cards%2Fsearch&card=marca%3D11+searchprod%3D1&tipo=1'
         }
         
     def random_delay(self, min_seconds=1, max_seconds=3):
