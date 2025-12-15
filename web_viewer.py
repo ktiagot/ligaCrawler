@@ -32,22 +32,29 @@ def get_price_history():
     """Gera histórico de preços por produto"""
     all_data = load_all_data()
     history = {}
-    
     for item in all_data:
         name = item['name']
         if name not in history:
             history[name] = []
-        
-        history[name].append({
-            'date': item['scraped_at'],
-            'price': float(item['price']) if item['price'] else 0,
-            'marca': item['marca']
-        })
-    
+        # Corrige o formato do preço para float
+        preco_str = str(item['price']) if item['price'] else '0'
+        preco_str = preco_str.replace('.', '').replace(',', '.')
+        try:
+            preco_float = float(preco_str)
+        except Exception:
+            preco_float = 0
+        # Só adiciona se o preço for maior que zero
+        if preco_float > 0:
+            history[name].append({
+                'date': item['scraped_at'],
+                'price': preco_float,
+                'marca': item['marca']
+            })
+    # Remove produtos sem histórico de preço
+    history = {k: v for k, v in history.items() if v}
     # Ordena por data
     for name in history:
         history[name] = sorted(history[name], key=lambda x: x['date'])
-    
     return history
 
 @app.route('/')
