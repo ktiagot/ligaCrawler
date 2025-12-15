@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Liga SWU - Monitor de Preços</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .header { background: #fff; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .products { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
+        .product { background: #fff; border-radius: 8px; padding: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .product img { width: 100%; max-width: 150px; height: auto; border-radius: 4px; }
+        .product h3 { margin: 10px 0; font-size: 14px; }
+        .price { font-size: 18px; font-weight: bold; color: #e74c3c; }
+
+        .history-btn { background: #2ecc71; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; margin-top: 10px; }
+        .history-btn:hover { background: #27ae60; }
+        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); }
+        .modal-content { background: #fff; margin: 5% auto; padding: 20px; width: 80%; max-width: 800px; border-radius: 8px; }
+        #priceChart { width: 100%; height: 400px; margin: 20px 0; }
+        .close { color: #aaa; float: right; font-size: 28px; font-weight: bold; cursor: pointer; }
+        .close:hover { color: #000; }
+        .search { margin-bottom: 20px; }
+        .search input { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 16px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Liga SWU - Monitor de Preços</h1>
+            <p>Total de produtos: {{ products|length }}</p>
+            <div class="search">
+                <input type="text" id="searchInput" placeholder="Buscar produtos..." onkeyup="filterProducts()">
+            </div>
+            <div style="margin-top: 10px;">
+                <label>Ordenar por preço: </label>
+                <select id="sortSelect" onchange="sortProducts()">
+                    <option value="name">Nome (A-Z)</option>
+                    <option value="price-asc">Menor preço</option>
+                    <option value="price-desc">Maior preço</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="products" id="productsContainer">
+            {% for product in products %}
+            <div class="product" data-name="{{ product.name.lower() }}">
+                <img src="{{ product.image }}" alt="{{ product.name }}" onerror="this.style.display='none'">
+                <h3>{{ product.name }}</h3>
+                <div class="price">R$ {{ product.price }}</div>
+
+                <button class="history-btn" onclick="showHistory('{{ product.name }}')">Ver Histórico</button>
+                <a href="{{ product.link }}" target="_blank" style="display: block; margin-top: 5px; font-size: 12px;">Ver no site</a>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Modal para histórico -->
+    <div id="historyModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal()">&times;</span>
+            <h2 id="modalTitle">Histórico de Preços</h2>
+            <div id="historyContent">Carregando...</div>
+        </div>
+    </div>
+
+    <script>
+        function filterProducts() {
+            const input = document.getElementById('searchInput');
+            const filter = input.value.toLowerCase();
+            const products = document.querySelectorAll('.product');
+            
+            products.forEach(product => {
+                const name = product.getAttribute('data-name');
+                if (name.includes(filter)) {
+                    product.style.display = 'block';
+                } else {
+                    product.style.display = 'none';
+                }
+            });
+        }
+
+        function sortProducts() {
+            const container = document.getElementById('productsContainer');
+            const products = Array.from(container.children);
+            const sortBy = document.getElementById('sortSelect').value;
+            
+            products.sort((a, b) => {
+                if (sortBy === 'name') {
+                    return a.getAttribute('data-name').localeCompare(b.getAttribute('data-name'));
+                } else if (sortBy === 'price-asc') {
+                    const priceA = parseFloat(a.querySelector('.price').textContent.replace('R$ ', '').replace(',', '.'));
+                    const priceB = parseFloat(b.querySelector('.price').textContent.replace('R$ ', '').replace(',', '.'));
+                    return priceA - priceB;
+                } else if (sortBy === 'price-desc') {
+                    const priceA = parseFloat(a.querySelector('.price').textContent.replace('R$ ', '').replace(',', '.'));
+                    const priceB = parseFloat(b.querySelector('.price').textContent.replace('R$ ', '').replace(',', '.'));
+                    return priceB - priceA;
+                }
+            });
+            
+            products.forEach(product => container.appendChild(product));
+        }
+
+        function showHistory(productName) {
+            document.getElementById('historyModal').style.display = 'block';
+            document.getElementById('modalTitle').textContent = `Histórico: ${productName}`;
+            document.getElementById('historyContent').innerHTML = '<canvas id="priceChart"></canvas>';
+            
+            fetch(`/history/${encodeURIComponent(productName)}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.length === 0) {
+                        document.getElementById('historyContent').innerHTML = '<p>Nenhum histórico encontrado.</p>';
+                        return;
+                    }
+                    
+                    const labels = data.map(item => new Date(item.date).toLocaleDateString('pt-BR'));
+                    const prices = data.map(item => item.price);
+                    
+                    const ctx = document.getElementById('priceChart').getContext('2d');
+                    new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: labels,
+                            datasets: [{
+                                label: 'Preço (R$)',
+                                data: prices,
+                                borderColor: '#e74c3c',
+                                backgroundColor: 'rgba(231, 76, 60, 0.1)',
+                                borderWidth: 2,
+                                fill: true,
+                                tension: 0.1
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            scales: {
+                                y: {
+                                    beginAtZero: false,
+                                    ticks: {
+                                        callback: function(value) {
+                                            return 'R$ ' + value.toFixed(2);
+                                        }
+                                    }
+                                }
+                            },
+                            plugins: {
+                                legend: {
+                                    display: true
+                                }
+                            }
+                        }
+                    });
+                })
+                .catch(error => {
+                    document.getElementById('historyContent').innerHTML = 'Erro ao carregar histórico.';
+                });
+        }
+
+        function closeModal() {
+            document.getElementById('historyModal').style.display = 'none';
+        }
+
+        // Fecha modal clicando fora
+        window.onclick = function(event) {
+            const modal = document.getElementById('historyModal');
+            if (event.target == modal) {
+                modal.style.display = 'none';
+            }
+        }
+    </script>
+</body>
+</html>

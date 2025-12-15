@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: liga-scraper-web
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python web_viewer.py
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.9.16
+  - type: cron
+    name: liga-scraper-cron
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python liga_scraper.py
+    schedule: "0 */6 * * *"
